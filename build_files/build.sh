@@ -20,12 +20,23 @@ set -ouex pipefail
 # dnf5 -y copr disable ublue-os/staging
 
 # Add albert app launcher
-dnf config-manager addrepo --from-repofile=/ctx/albert.repo
-dnf install albert -y
+dnf5 config-manager addrepo --from-repofile=/ctx/albert.repo
 
-# Add the many hyprland ecosystem tools from copr
-dnf5 -y copr enable solopasha/hyprland
+# Enable COPR repositories for the more exotic tools
+# that aren't in distro
+COPR_REPOS=(
+  solopasha/hyprland
+  errornointernet/walker
+  wiiznokes/gauntlet
+)
+
+for repo in "${COPR_REPOS[@]}"; do
+  dnf5 -y copr enable "$repo"
+done
+
 dnf5 -y install \
+  albert \
+  gauntlet \
 	hyprland \
 	xdg-desktop-portal-hyprland \
 	hyprland-contrib \
@@ -52,12 +63,13 @@ dnf5 -y install \
 	swaylock-effects \
 	pyprland \
 	mpvpaper \
-	uwsm
+	uwsm \
+  walker
 
 # Disable COPRs so they don't end up enabled on the final image:
-dnf5 -y copr disable solopasha/hyprland
-
+for repo in "${COPR_REPOS[@]}"; do
+  dnf5 -y copr disable "$repo"
+done
 
 #### Example for enabling a System Unit File
-
 systemctl enable podman.socket
