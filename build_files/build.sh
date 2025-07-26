@@ -33,35 +33,35 @@ done
 
 dnf5 -y install \
   blueman-applet \
-	cliphist \
-	eww-git \
-	hyprdim \
-	hypridle \
-	hyprland \
-	hyprland-autoname-workspaces \
-	hyprland-contrib \
-	hyprland-plugins \
-	hyprlock \
-	hyprnome \
-	hyprpanel \
-	hyprpaper \
-	hyprpicker \
-	hyprpolkitagent \
-	hyprshot \
-	hyprsunset \
-	hyprsysteminfo \
-	mpvpaper \
-	nwg-clipman \
-	pyprland \
-	satty \
-	swaylock-effects \
+  cliphist \
+  eww-git \
+  hyprdim \
+  hypridle \
+  hyprland \
+  hyprland-autoname-workspaces \
+  hyprland-contrib \
+  hyprland-plugins \
+  hyprlock \
+  hyprnome \
+  hyprpanel \
+  hyprpaper \
+  hyprpicker \
+  hyprpolkitagent \
+  hyprshot \
+  hyprsunset \
+  hyprsysteminfo \
+  mpvpaper \
+  nwg-clipman \
+  pyprland \
+  satty \
+  swaylock-effects \
   SwayNotificationCenter \
-	swww \
-	uwsm \
+  swww \
+  uwsm \
   walker \
-	waybar-git \
-	waypaper \
-	xdg-desktop-portal-hyprland
+  waybar-git \
+  waypaper \
+  xdg-desktop-portal-hyprland
   
 # Disable COPRs so they don't end up enabled on the final image:
 for repo in "${COPR_REPOS[@]}"; do
