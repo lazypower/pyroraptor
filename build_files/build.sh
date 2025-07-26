@@ -19,15 +19,12 @@ set -ouex pipefail
 # Disable COPRs so they don't end up enabled on the final image:
 # dnf5 -y copr disable ublue-os/staging
 
-# Add albert app launcher
-dnf5 config-manager addrepo --from-repofile=/ctx/albert.repo
-
 # Enable COPR repositories for the more exotic tools
 # that aren't in distro
 COPR_REPOS=(
   solopasha/hyprland
   errornointernet/walker
-  wiiznokes/gauntlet
+  erikreider/SwayNotificationCenter
 )
 
 for repo in "${COPR_REPOS[@]}"; do
@@ -35,37 +32,37 @@ for repo in "${COPR_REPOS[@]}"; do
 done
 
 dnf5 -y install \
-  albert \
-  gauntlet \
+  blueman-applet \
+	cliphist \
+	eww-git \
+	hyprdim \
+	hypridle \
 	hyprland \
-	xdg-desktop-portal-hyprland \
+	hyprland-autoname-workspaces \
 	hyprland-contrib \
 	hyprland-plugins \
+	hyprlock \
+	hyprnome \
+	hyprpanel \
 	hyprpaper \
 	hyprpicker \
-	hypridle \
-	hyprlock \
-	hyprsunset \
 	hyprpolkitagent \
-	hyprsysteminfo \
-	hyprland-autoname-workspaces \
 	hyprshot \
-	satty \
-	hyprpanel \
-	waybar-git \
-	eww-git \
-	cliphist \
-	nwg-clipman \
-	swww \
-	waypaper \
-	hyprnome \
-	hyprdim \
-	swaylock-effects \
-	pyprland \
+	hyprsunset \
+	hyprsysteminfo \
 	mpvpaper \
+	nwg-clipman \
+	pyprland \
+	satty \
+	swaylock-effects \
+  SwayNotificationCenter \
+	swww \
 	uwsm \
-  walker
-
+  walker \
+	waybar-git \
+	waypaper \
+	xdg-desktop-portal-hyprland
+  
 # Disable COPRs so they don't end up enabled on the final image:
 for repo in "${COPR_REPOS[@]}"; do
   dnf5 -y copr disable "$repo"
