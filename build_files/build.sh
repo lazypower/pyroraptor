@@ -4,20 +4,13 @@ set -ouex pipefail
 
 ### Install packages
 
-# Packages can be installed from any enabled yum repo on the image.
-# RPMfusion repos are available by default in ublue main images
-# List of rpmfusion packages can be found here:
-# https://mirrors.rpmfusion.org/mirrorlist?path=free/fedora/updates/39/x86_64/repoview/index.html&protocol=https&redirect=1
-
-# this installs a package from fedora repos
-# dnf5 install -y tmux
-
-# Use a COPR Example:
-#
-# dnf5 -y copr enable ublue-os/staging
-# dnf5 -y install package
-# Disable COPRs so they don't end up enabled on the final image:
-# dnf5 -y copr disable ublue-os/staging
+# OnePassword in base for integrations
+# TODO: Clean this up - I'm not crazy about splatting in vendor directions.
+# and the flatpak is lame due to sandboxing - it works, but not fully.
+mkdir -p /var/opt/1Password
+rpm --import https://downloads.1password.com/linux/keys/1password.asc
+sh -c 'echo -e "[1password]\nname=1Password Stable Channel\nbaseurl=https://downloads.1password.com/linux/rpm/stable/\$basearch\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=\"https://downloads.1password.com/linux/keys/1password.asc\"" > /etc/yum.repos.d/1password.repo'
+dnf -y install 1password
 
 # Enable COPR repositories for the more exotic tools
 # that aren't in distro
@@ -32,9 +25,9 @@ for repo in "${COPR_REPOS[@]}"; do
 done
 
 dnf5 -y install \
+  1password \
   blueman-applet \
   cliphist \
-  eww-git \
   hyprdim \
   hypridle \
   hyprland \
@@ -66,6 +59,7 @@ dnf5 -y install \
 # Disable COPRs so they don't end up enabled on the final image:
 for repo in "${COPR_REPOS[@]}"; do
   dnf5 -y copr disable "$repo"
+  rm -rf /etc/yum.repos.d/1password.repo
 done
 
 #### Example for enabling a System Unit File
