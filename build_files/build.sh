@@ -54,6 +54,3 @@ dnf5 -y install \
 for repo in "${COPR_REPOS[@]}"; do
   dnf5 -y copr disable "$repo"
 done
-
-#### Example for enabling a System Unit File
-systemctl enable podman.socket
