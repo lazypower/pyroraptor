@@ -45,6 +45,7 @@ dnf5 -y install \
   walker \
   waybar-git \
   waypaper \
+  wlogout \
   xdg-desktop-portal-hyprland
 
 # OnePassword in base for integrations
