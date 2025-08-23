@@ -17,7 +17,6 @@ for repo in "${COPR_REPOS[@]}"; do
 done
 
 dnf5 -y install \
-  blueman-applet \
   cliphist \
   hyprdim \
   hypridle \
