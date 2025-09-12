@@ -1,0 +1,126 @@
+name: Build container image
+on:
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: '05 10 * * *'  # 10:05am UTC everyday
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/README.md'
+  workflow_dispatch:
+
+
+env:
+  IMAGE_DESC: "Pyroraptor - A bluefin-dx hyprland derivative"
+  IMAGE_KEYWORDS: "bootc,ublue,universal-blue"
+  IMAGE_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"  # Put your own image here for a fancy profile on https://artifacthub.io/!
+  IMAGE_NAME: "${{ gitea.event.repository.name }}"  # output image name, usually same as repo name
+  IMAGE_REGISTRY: "git.wabash.place/${{ gitea.repository_owner }}"  # do not edit
+  DEFAULT_TAG: "latest"
+
+jobs:
+  build:
+    name: Build image
+    runs-on: buildah
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+    # - name: Debug Environment
+    #   run: |
+    #     echo "Current user: $(whoami)"
+    #     echo "Current directory: $(pwd)"
+    #     echo "PATH: $PATH"
+    #     ls -la /var/home/foreman/bin/
+
+    - name: Prepare environment
+      run: |
+        # Lowercase the image uri
+        echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> ${GITHUB_ENV}
+        echo "IMAGE_NAME=${IMAGE_NAME,,}" >> ${GITHUB_ENV}
+
+    - uses: https://github.com/actions/checkout@v4
+
+    - name: Image Metadata
+      uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5
+      id: metadata
+      with:
+        # This generates all the tags for your image, you can add custom tags here too!
+        # Default tags are "$DEFAULT_TAG" and "$DEFAULT_TAG.$date".
+        tags: |
+          type=raw,value=${{ env.DEFAULT_TAG }}
+          type=raw,value=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
+          type=raw,value={{date 'YYYYMMDD'}}
+          type=sha,enable=${{ gitea.event_name == 'pull_request' }}
+          type=ref,event=pr
+        labels: |
+          io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ gitea.repository_owner }}/${{ env.IMAGE_NAME }}/refs/heads/main/README.md
+          org.opencontainers.image.created=${{ steps.date.outputs.date }}
+          org.opencontainers.image.description=${{ env.IMAGE_DESC }}
+          org.opencontainers.image.documentation=https://raw.githubusercontent.com/${{ gitea.repository_owner }}/${{ env.IMAGE_NAME }}/refs/heads/main/README.md
+          org.opencontainers.image.source=https://github.com/${{ gitea.repository_owner }}/${{ env.IMAGE_NAME }}/blob/main/Containerfile
+          org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+          org.opencontainers.image.url=https://github.com/${{ gitea.repository_owner }}/${{ env.IMAGE_NAME }}
+          org.opencontainers.image.vendor=${{ gitea.repository_owner }}
+          org.opencontainers.image.version=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
+          io.artifacthub.package.deprecated=false
+          io.artifacthub.package.keywords=${{ env.IMAGE_KEYWORDS }}
+          io.artifacthub.package.license=Apache-2.0
+          io.artifacthub.package.logo-url=${{ env.IMAGE_LOGO_URL }}
+          io.artifacthub.package.prerelease=false
+          containers.bootc=1
+        sep-tags: " "
+        sep-annotations: " "
+
+      # Build image using Buildah action
+    - name: Build Image
+      runs-on: buildah
+      id: build_image
+      uses: https://git.wabash.place/actions/buildah-build@main
+      with:
+          image: ${{ env.IMAGE_NAME }}
+          layers: false
+          tags: ${{ steps.metadata.outputs.tags }}
+          containerfiles: |
+            ./Containerfile
+          extra-args: |
+            --pull
+
+    - name: Push To Registry
+      uses: https://git.wabash.place/actions/push-to-registry@v2 # v2
+      id: push
+      with:
+        registry: docker://${{ env.IMAGE_REGISTRY }}
+        image: ${{ env.IMAGE_NAME }}
+        tags: ${{ steps.metadata.outputs.tags }}
+        username: ${{ secrets.REGISTRY_USER }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+
+
+    - name: Install Cosign
+      uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+      if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+
+    - name: Sign container image
+      if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      run: |
+        IMAGE_FULL="${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}"
+        for tag in ${{ steps.metadata.outputs.tags }}; do
+          cosign sign -y \
+            --key env://COSIGN_PRIVATE_KEY $IMAGE_FULL:$tag \
+            --registry-username=$REGISTRY_USER \
+            --registry-password=$REGISTRY_PASSWORD
+        done
+      env:
+        TAGS: ${{ steps.push.outputs.digest }}
+        COSIGN_PASSWORD: ""
+        COSIGN_EXPERIMENTAL: false
+        COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+        REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+        REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
