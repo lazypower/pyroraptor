@@ -10,6 +10,7 @@ COPR_REPOS=(
   solopasha/hyprland
   errornointernet/walker
   erikreider/SwayNotificationCenter
+  scottames/ghostty
 )
 
 for repo in "${COPR_REPOS[@]}"; do
@@ -18,6 +19,8 @@ done
 
 dnf5 -y install \
   cliphist \
+  firefox \
+  ghostty \
   hyprdim \
   hypridle \
   hyprland \
