@@ -8,7 +8,6 @@ set -ouex pipefail
 # that aren't in distro
 COPR_REPOS=(
   solopasha/hyprland
-  errornointernet/walker
   erikreider/SwayNotificationCenter
   scottames/ghostty
 )
@@ -27,6 +26,7 @@ dnf5 -y install \
   hyprland-autoname-workspaces \
   hyprland-contrib \
   hyprland-plugins \
+  hyprlauncher \
   hyprlock \
   hyprnome \
   hyprpanel \
@@ -44,7 +44,6 @@ dnf5 -y install \
   SwayNotificationCenter \
   swww \
   uwsm \
-  walker \
   waybar-git \
   waypaper \
   wlogout \
