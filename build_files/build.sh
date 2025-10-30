@@ -7,6 +7,9 @@ set -ouex pipefail
 # Enable COPR repositories for the more exotic tools
 # that aren't in distro
 COPR_REPOS=(
+  solopasha/hyprland
+  errornointernet/walker
+  erikreider/SwayNotificationCenter
   scottames/ghostty
 )
 
@@ -15,8 +18,37 @@ for repo in "${COPR_REPOS[@]}"; do
 done
 
 dnf5 -y install \
+  cliphist \
   firefox \
-  ghostty
+  ghostty \
+  hyprdim \
+  hypridle \
+  hyprland \
+  hyprland-autoname-workspaces \
+  hyprland-contrib \
+  hyprland-plugins \
+  hyprlock \
+  hyprnome \
+  hyprpanel \
+  hyprpaper \
+  hyprpicker \
+  hyprpolkitagent \
+  hyprshot \
+  hyprsunset \
+  hyprsysteminfo \
+  mpvpaper \
+  nwg-clipman \
+  pyprland \
+  satty \
+  swaylock-effects \
+  SwayNotificationCenter \
+  swww \
+  uwsm \
+  walker \
+  waybar-git \
+  waypaper \
+  wlogout \
+  xdg-desktop-portal-hyprland
 
 # OnePassword in base for integrations
 /ctx/onepassword.sh
