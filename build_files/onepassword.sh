@@ -9,7 +9,7 @@ set -ouex pipefail
 #### Variables
 
 # Can be "beta" or "stable"
-RELEASE_CHANNEL="${ONEPASSWORD_RELEASE_CHANNEL:-stable}"
+RELEASE_CHANNEL="${ONEPASSWORD_RELEASE_CHANNEL:-beta}"
 
 # Must be over 1000
 GID_ONEPASSWORD="${GID_ONEPASSWORD:-1500}"
