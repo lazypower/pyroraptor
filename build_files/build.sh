@@ -2,6 +2,11 @@
 
 set -ouex pipefail
 
+### Uninstall some packages from base
+
+# I dont use vscode so nix it.
+dnf remove -y code
+
 ### Install packages
 
 # Enable COPR repositories for the more exotic tools
