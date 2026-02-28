@@ -21,7 +21,15 @@ done
 
 dnf5 -y install \
   firefox \
-  ghostty 
+  ghostty \
+  vulkan-headers \
+  vulkan-loader-devel \
+  glslang \
+  spirv-tools \
+  glslang-devel \
+  spirv-tools-devel \
+  vulkan-tools
+# Vulkan dev for llama.cpp
 
 # OnePassword in base for integrations
 /ctx/onepassword.sh
