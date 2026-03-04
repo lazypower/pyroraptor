@@ -27,19 +27,22 @@ ENV GOFLAGS="-buildvcs=false"
 ENV GOPATH=/tmp/go
 ENV GOCACHE=/tmp/go-cache
 
-# Build CPU + Vulkan runners only — skip CUDA and ROCm
-RUN OLLAMA_SKIP_CUDA_GENERATE=1 \
-    OLLAMA_VULKAN=1 \
-    CMAKE_DEFS="-DGGML_VULKAN=ON" \
-    go generate ./...
+# Build CPU + Vulkan runners via CMake presets
+RUN cmake --preset CPU && \
+    cmake --build --parallel --preset CPU && \
+    cmake --install build --component CPU --strip
 
-RUN go build -trimpath -o /out/ollama .
+RUN cmake --preset Vulkan && \
+    cmake --build --parallel --preset Vulkan && \
+    cmake --install build --component Vulkan --strip
 
-# Collect runner shared libs (Vulkan, CPU) alongside the binary
-RUN mkdir -p /out/lib/ollama && \
-    if [ -d build/lib/ollama ]; then \
-      cp -a build/lib/ollama/* /out/lib/ollama/; \
-    fi
+# Build the Go binary
+RUN go build -trimpath -o dist/bin/ollama .
+
+# Flatten into /out for COPY
+RUN mkdir -p /out/bin && \
+    cp dist/bin/ollama /out/bin/ && \
+    cp -a dist/lib /out/
 
 ### FINAL IMAGE
 FROM ghcr.io/ublue-os/bluefin-dx:stable
@@ -47,9 +50,9 @@ FROM ghcr.io/ublue-os/bluefin-dx:stable
 ## Install Ollama into the immutable image layer.
 ## /opt is a symlink to /var/opt on ostree, so we install to /usr/lib/ollama
 ## and create a tmpfiles.d symlink for /opt/ollama compat (same pattern as 1Password).
-COPY --from=ollama-builder /out/ /usr/lib/ollama/
-RUN ln -sf /usr/lib/ollama/ollama /usr/bin/ollama && \
-    printf 'L /opt/ollama - - - - /usr/lib/ollama\n' > /usr/lib/tmpfiles.d/ollama.conf
+COPY --from=ollama-builder /out/bin/ollama /usr/bin/ollama
+COPY --from=ollama-builder /out/lib/ollama/ /usr/lib/ollama/
+RUN printf 'L /opt/ollama - - - - /usr/lib/ollama\n' > /usr/lib/tmpfiles.d/ollama.conf
 
 ### MODIFICATIONS
 ## make modifications desired in your image and install packages by modifying the build.sh script
