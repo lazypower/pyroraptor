@@ -23,6 +23,15 @@ RUN git clone --depth 1 --branch ${OLLAMA_VERSION} \
 
 WORKDIR /build/ollama
 
+# Ollama's vendored ggml is missing the feature-tests/ shaders that enable
+# KHR_cooperative_matrix detection. Pull them from upstream ggml.
+ARG GGML_COMMIT=master
+RUN mkdir -p ml/backend/ggml/ggml/src/ggml-vulkan/vulkan-shaders/feature-tests && \
+    for f in coopmat.comp coopmat2.comp integer_dot.comp bfloat16.comp; do \
+      curl -sfL "https://raw.githubusercontent.com/ggml-org/llama.cpp/${GGML_COMMIT}/ggml/src/ggml-vulkan/vulkan-shaders/feature-tests/${f}" \
+        -o "ml/backend/ggml/ggml/src/ggml-vulkan/vulkan-shaders/feature-tests/${f}"; \
+    done
+
 ENV CGO_ENABLED=1
 ENV GOFLAGS="-buildvcs=false"
 ENV GOPATH=/tmp/go
