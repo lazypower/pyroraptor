@@ -30,7 +30,7 @@ ENV GOCACHE=/tmp/go-cache
 
 # Build CPU + Vulkan runners via CMake presets
 # Kill ccache — it races on the cache dir in this homeless builder
-RUN rm -f $(which ccache 2>/dev/null) /usr/bin/ccache /usr/lib64/ccache
+RUN rm -rf /usr/lib64/ccache /usr/bin/ccache
 
 RUN cmake --preset CPU && \
     cmake --build --parallel --preset CPU && \
