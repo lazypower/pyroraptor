@@ -29,8 +29,8 @@ ENV GOPATH=/tmp/go
 ENV GOCACHE=/tmp/go-cache
 
 # Build CPU + Vulkan runners via CMake presets
-# Remove ccache from PATH — ephemeral builder, and it races on the cache dir
-ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Kill ccache — it races on the cache dir in this homeless builder
+RUN rm -f $(which ccache 2>/dev/null) /usr/bin/ccache /usr/lib64/ccache
 
 RUN cmake --preset CPU && \
     cmake --build --parallel --preset CPU && \
