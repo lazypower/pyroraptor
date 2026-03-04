@@ -39,6 +39,15 @@ mkdir -p /nix
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix -o /nix/determinate-nix-installer.sh
 chmod a+rx /nix/determinate-nix-installer.sh
 
+# Disable GDM suspend on the login screen
+mkdir -p /etc/dconf/db/gdm.d
+cat > /etc/dconf/db/gdm.d/disable-sleep <<'DCONF'
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-timeout=0
+sleep-inactive-ac-type='nothing'
+DCONF
+dconf update
+
 # Disable COPRs so they don't end up enabled on the final image:
 for repo in "${COPR_REPOS[@]}"; do
   dnf5 -y copr disable "$repo"
