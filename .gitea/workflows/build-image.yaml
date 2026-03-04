@@ -32,51 +32,55 @@ jobs:
       id-token: write
 
     steps:
-    # - name: Debug Environment
-    #   run: |
-    #     echo "Current user: $(whoami)"
-    #     echo "Current directory: $(pwd)"
-    #     echo "PATH: $PATH"
-    #     ls -la /var/home/foreman/bin/
-
     - name: Prepare environment
       run: |
         # Lowercase the image uri
         echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> ${GITHUB_ENV}
         echo "IMAGE_NAME=${IMAGE_NAME,,}" >> ${GITHUB_ENV}
 
-    - uses: https://github.com/actions/checkout@v4
+    - name: Checkout
+      env:
+        REPO_TOKEN: ${{ gitea.token }}
+      run: |
+        REF="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+        CLONE_URL="${GITHUB_SERVER_URL/https:\/\//https:\/\/token:${REPO_TOKEN}@}"
+        git clone --depth 1 -b "${REF}" \
+          "${CLONE_URL}/${GITHUB_REPOSITORY}.git" .
 
-    - name: Image Metadata
-      uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5
+    - name: Generate image metadata
       id: metadata
-      with:
-        # This generates all the tags for your image, you can add custom tags here too!
-        # Default tags are "$DEFAULT_TAG" and "$DEFAULT_TAG.$date".
-        tags: |
-          type=raw,value=${{ env.DEFAULT_TAG }}
-          type=raw,value=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
-          type=raw,value={{date 'YYYYMMDD'}}
-          type=sha,enable=${{ gitea.event_name == 'pull_request' }}
-          type=ref,event=pr
-        labels: |
-          io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ gitea.repository_owner }}/${{ env.IMAGE_NAME }}/refs/heads/main/README.md
-          org.opencontainers.image.created=${{ steps.date.outputs.date }}
-          org.opencontainers.image.description=${{ env.IMAGE_DESC }}
-          org.opencontainers.image.documentation=https://raw.githubusercontent.com/${{ gitea.repository_owner }}/${{ env.IMAGE_NAME }}/refs/heads/main/README.md
-          org.opencontainers.image.source=https://github.com/${{ gitea.repository_owner }}/${{ env.IMAGE_NAME }}/blob/main/Containerfile
-          org.opencontainers.image.title=${{ env.IMAGE_NAME }}
-          org.opencontainers.image.url=https://github.com/${{ gitea.repository_owner }}/${{ env.IMAGE_NAME }}
-          org.opencontainers.image.vendor=${{ gitea.repository_owner }}
-          org.opencontainers.image.version=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
-          io.artifacthub.package.deprecated=false
-          io.artifacthub.package.keywords=${{ env.IMAGE_KEYWORDS }}
-          io.artifacthub.package.license=Apache-2.0
-          io.artifacthub.package.logo-url=${{ env.IMAGE_LOGO_URL }}
-          io.artifacthub.package.prerelease=false
-          containers.bootc=1
-        sep-tags: " "
-        sep-annotations: " "
+      run: |
+        DATE=$(date -u +%Y%m%d)
+        SHA_SHORT="${GITHUB_SHA:0:7}"
+
+        TAGS="${DEFAULT_TAG} ${DEFAULT_TAG}.${DATE} ${DATE}"
+        if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+          PR_NUM=$(echo "${GITHUB_REF}" | grep -oP '(?<=refs/pull/)\d+')
+          TAGS="${TAGS} sha-${SHA_SHORT} pr-${PR_NUM}"
+        fi
+        echo "tags=${TAGS}" >> "${GITHUB_OUTPUT}"
+
+        # Multiline labels output
+        {
+          echo "labels<<LABELS_EOF"
+          printf '%s\n' \
+            "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}/refs/heads/main/README.md" \
+            "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "org.opencontainers.image.description=${IMAGE_DESC}" \
+            "org.opencontainers.image.documentation=https://raw.githubusercontent.com/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}/refs/heads/main/README.md" \
+            "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}/blob/main/Containerfile" \
+            "org.opencontainers.image.title=${IMAGE_NAME}" \
+            "org.opencontainers.image.url=https://github.com/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}" \
+            "org.opencontainers.image.vendor=${GITHUB_REPOSITORY_OWNER}" \
+            "org.opencontainers.image.version=${DEFAULT_TAG}.${DATE}" \
+            "io.artifacthub.package.deprecated=false" \
+            "io.artifacthub.package.keywords=${IMAGE_KEYWORDS}" \
+            "io.artifacthub.package.license=Apache-2.0" \
+            "io.artifacthub.package.logo-url=${IMAGE_LOGO_URL}" \
+            "io.artifacthub.package.prerelease=false" \
+            "containers.bootc=1"
+          echo "LABELS_EOF"
+        } >> "${GITHUB_OUTPUT}"
 
     - name: Build Image
       id: build_image
@@ -110,21 +114,22 @@ jobs:
           podman push "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
         done
 
-
     - name: Install Cosign
-      uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
       if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+      run: |
+        curl -sSfL "https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64" \
+          -o /usr/local/bin/cosign
+        chmod +x /usr/local/bin/cosign
 
     - name: Sign container image
       if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-      run: |
-        IMAGE_FULL="${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}"
-        for tag in ${{ steps.metadata.outputs.tags }}; do
-          cosign sign -y \
-            --key env://COSIGN_PRIVATE_KEY $IMAGE_FULL:$tag
-        done
       env:
-        TAGS: ${{ steps.push.outputs.digest }}
         COSIGN_PASSWORD: ""
         COSIGN_EXPERIMENTAL: false
         COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+      run: |
+        IMAGE_FULL="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+        for tag in ${{ steps.metadata.outputs.tags }}; do
+          cosign sign -y \
+            --key env://COSIGN_PRIVATE_KEY "${IMAGE_FULL}:${tag}"
+        done

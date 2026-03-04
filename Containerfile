@@ -24,18 +24,16 @@ WORKDIR /build/ollama
 
 ENV CGO_ENABLED=1
 ENV GOFLAGS="-buildvcs=false"
+ENV GOPATH=/tmp/go
+ENV GOCACHE=/tmp/go-cache
 
 # Build CPU + Vulkan runners only — skip CUDA and ROCm
-RUN --mount=type=cache,dst=/root/go/pkg/mod \
-    --mount=type=cache,dst=/root/.cache/go-build \
-    OLLAMA_SKIP_CUDA_GENERATE=1 \
+RUN OLLAMA_SKIP_CUDA_GENERATE=1 \
     OLLAMA_VULKAN=1 \
     CMAKE_DEFS="-DGGML_VULKAN=ON" \
     go generate ./...
 
-RUN --mount=type=cache,dst=/root/go/pkg/mod \
-    --mount=type=cache,dst=/root/.cache/go-build \
-    go build -trimpath -o /out/ollama .
+RUN go build -trimpath -o /out/ollama .
 
 # Collect runner shared libs (Vulkan, CPU) alongside the binary
 RUN mkdir -p /out/lib/ollama && \
