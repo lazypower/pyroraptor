@@ -29,12 +29,14 @@ ENV GOPATH=/tmp/go
 ENV GOCACHE=/tmp/go-cache
 
 # Build CPU + Vulkan runners via CMake presets
-# Disable ccache — ephemeral builder, and it races on the cache dir
-RUN cmake --preset CPU -DGGML_CCACHE=OFF && \
+# Remove ccache from PATH — ephemeral builder, and it races on the cache dir
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+RUN cmake --preset CPU && \
     cmake --build --parallel --preset CPU && \
     cmake --install build --component CPU --strip
 
-RUN cmake --preset Vulkan -DGGML_CCACHE=OFF && \
+RUN cmake --preset Vulkan && \
     cmake --build --parallel --preset Vulkan && \
     cmake --install build --component Vulkan --strip
 
