@@ -15,7 +15,8 @@ RUN --mount=type=cache,dst=/var/cache \
       golang cmake gcc-c++ git \
       vulkan-headers vulkan-loader-devel \
       glslang glslang-devel \
-      spirv-tools spirv-tools-devel
+      spirv-tools spirv-tools-devel \
+      glslc
 
 RUN git clone --depth 1 --branch ${OLLAMA_VERSION} \
       https://github.com/ollama/ollama.git /build/ollama
