@@ -78,29 +78,37 @@ jobs:
         sep-tags: " "
         sep-annotations: " "
 
-      # Build image using Buildah action
     - name: Build Image
-      runs-on: buildah
       id: build_image
-      uses: https://git.wabash.place/actions/buildah-build@main
-      with:
-          image: ${{ env.IMAGE_NAME }}
-          layers: false
-          tags: ${{ steps.metadata.outputs.tags }}
-          containerfiles: |
-            ./Containerfile
-          extra-args: |
-            --pull
+      env:
+        META_TAGS: ${{ steps.metadata.outputs.tags }}
+        META_LABELS: ${{ steps.metadata.outputs.labels }}
+      run: |
+        TAG_ARGS=()
+        for tag in ${META_TAGS}; do
+          TAG_ARGS+=("-t" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}")
+        done
+
+        LABEL_ARGS=()
+        while IFS= read -r label; do
+          [ -n "$label" ] && LABEL_ARGS+=("--label" "$label")
+        done <<< "${META_LABELS}"
+
+        podman build \
+          --pull=always \
+          --layers=false \
+          "${TAG_ARGS[@]}" \
+          "${LABEL_ARGS[@]}" \
+          -f ./Containerfile .
 
     - name: Push To Registry
-      uses: https://git.wabash.place/actions/push-to-registry@v2 # v2
       id: push
-      with:
-        registry: docker://${{ env.IMAGE_REGISTRY }}
-        image: ${{ env.IMAGE_NAME }}
-        tags: ${{ steps.metadata.outputs.tags }}
-        # username: ${{ secrets.REGISTRY_USER }}
-        # password: ${{ secrets.REGISTRY_PASSWORD }}
+      env:
+        META_TAGS: ${{ steps.metadata.outputs.tags }}
+      run: |
+        for tag in ${META_TAGS}; do
+          podman push "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
+        done
 
 
     - name: Install Cosign

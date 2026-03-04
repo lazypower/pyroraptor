@@ -2,19 +2,56 @@
 FROM scratch AS ctx
 COPY build_files /
 
-# Base Image
+### BUILD OLLAMA WITH VULKAN BACKEND
+## Multi-stage: compile Ollama from source against the same Mesa/Vulkan
+## headers shipped in the base image so it stays in sync on daily rebuilds.
+
+FROM ghcr.io/ublue-os/bluefin-dx:stable AS ollama-builder
+
+ARG OLLAMA_VERSION=v0.12.9
+
+RUN --mount=type=cache,dst=/var/cache \
+    dnf5 -y install \
+      golang cmake gcc-c++ git \
+      vulkan-headers vulkan-loader-devel \
+      glslang glslang-devel \
+      spirv-tools spirv-tools-devel
+
+RUN git clone --depth 1 --branch ${OLLAMA_VERSION} \
+      https://github.com/ollama/ollama.git /build/ollama
+
+WORKDIR /build/ollama
+
+ENV CGO_ENABLED=1
+ENV GOFLAGS="-buildvcs=false"
+
+# Build CPU + Vulkan runners only — skip CUDA and ROCm
+RUN --mount=type=cache,dst=/root/go/pkg/mod \
+    --mount=type=cache,dst=/root/.cache/go-build \
+    OLLAMA_SKIP_CUDA_GENERATE=1 \
+    OLLAMA_VULKAN=1 \
+    CMAKE_DEFS="-DGGML_VULKAN=ON" \
+    go generate ./...
+
+RUN --mount=type=cache,dst=/root/go/pkg/mod \
+    --mount=type=cache,dst=/root/.cache/go-build \
+    go build -trimpath -o /out/ollama .
+
+# Collect runner shared libs (Vulkan, CPU) alongside the binary
+RUN mkdir -p /out/lib/ollama && \
+    if [ -d build/lib/ollama ]; then \
+      cp -a build/lib/ollama/* /out/lib/ollama/; \
+    fi
+
+### FINAL IMAGE
 FROM ghcr.io/ublue-os/bluefin-dx:stable
 
-### [IM]MUTABLE /opt
-## Some bootable images, like Fedora, have /opt symlinked to /var/opt, in order to
-## make it mutable/writable for users. However, some packages write files to this directory,
-## thus its contents might be wiped out when bootc deploys an image, making it troublesome for
-## some packages. Eg, google-chrome, docker-desktop.
-##
-## Uncomment the following line if one desires to make /opt immutable and be able to be used
-## by the package manager.
-
-# RUN rm /opt && mkdir /opt
+## Install Ollama into the immutable image layer.
+## /opt is a symlink to /var/opt on ostree, so we install to /usr/lib/ollama
+## and create a tmpfiles.d symlink for /opt/ollama compat (same pattern as 1Password).
+COPY --from=ollama-builder /out/ /usr/lib/ollama/
+RUN ln -sf /usr/lib/ollama/ollama /usr/bin/ollama && \
+    printf 'L /opt/ollama - - - - /usr/lib/ollama\n' > /usr/lib/tmpfiles.d/ollama.conf
 
 ### MODIFICATIONS
 ## make modifications desired in your image and install packages by modifying the build.sh script
@@ -25,7 +62,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build.sh
-    
+
 ### LINTING
 ## Verify final image and contents are correct.
 RUN bootc container lint
